@@ -504,7 +504,7 @@ void	onTimer(HWND hWnd)
 	static int timer_count = 0;
 	if((++timer_count & 0xF) == 1) {
 		wchar_t str[256];
-		GetConsoleTitle(str, 256);
+		GetConsoleTitle(str, sizeof(str) / sizeof(str[0]));
 		if(gTitle == NULL || wcscmp(gTitle, str) != 0) {
 			if (gTitle) delete [] gTitle;
 			gTitle = new wchar_t[wcslen(str)+1];
