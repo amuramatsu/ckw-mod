@@ -60,6 +60,7 @@ BOOL	gFocus = FALSE;
 /* screen buffer - copy */
 CONSOLE_SCREEN_BUFFER_INFO* gCSI = NULL;
 CHAR_INFO*	gScreen = NULL;
+DWORD		gScreenSize = 0;
 wchar_t*	gTitle = NULL;
 
 /* setConsoleFont */
@@ -415,6 +416,13 @@ static void __set_console_window_size(LONG cols, LONG rows)
 
 	SetConsoleScreenBufferSize(gStdOut, csi.dwSize);
 	SetConsoleWindowInfo(gStdOut, TRUE, &csi.srWindow);
+	if (gScreen && gScreenSize < rows*cols) {
+		CHAR_INFO *newScreen = new CHAR_INFO[rows*cols];
+		memcpy(newScreen, gScreen, gScreenSize * sizeof(CHAR_INFO));
+		delete [] gScreen;
+		gScreen = newScreen;
+		gScreenSize = rows*cols;
+	}
 }
 
 /*----------*/
@@ -495,48 +503,52 @@ void	onTimer(HWND hWnd)
 	/* title update */
 	static int timer_count = 0;
 	if((++timer_count & 0xF) == 1) {
-		wchar_t *str = new wchar_t[256];
+		wchar_t str[256];
 		GetConsoleTitle(str, 256);
-		if(gTitle && !wcscmp(gTitle, str)) {
-			delete [] str;
-		}
-		else {
-			delete [] gTitle;
-			gTitle = str;
+		if(gTitle == NULL || wcscmp(gTitle, str) != 0) {
+			if (gTitle) delete [] gTitle;
+			gTitle = new wchar_t[wcslen(str)+1];
+			wcscpy(gTitle, str);
 			SetWindowText(hWnd, gTitle);
 			updateTrayTip(hWnd, gTitle);
 		}
 	}
 
-	CONSOLE_SCREEN_BUFFER_INFO* csi = new CONSOLE_SCREEN_BUFFER_INFO;
+	CONSOLE_SCREEN_BUFFER_INFO csi;
 	COORD	size;
 
-	GetConsoleScreenBufferInfo(gStdOut, csi);
-	size.X = CSI_WndCols(csi);
-	size.Y = CSI_WndRows(csi);
+	GetConsoleScreenBufferInfo(gStdOut, &csi);
+	size.X = CSI_WndCols(&csi);
+	size.Y = CSI_WndRows(&csi);
 
 	/* copy screen buffer */
+	static DWORD buffer_size = 0;
+	static CHAR_INFO* buffer = NULL;
 	DWORD      nb = size.X * size.Y;
-	CHAR_INFO* buffer = new CHAR_INFO[nb];
+	if (nb > buffer_size) {
+		buffer_size = nb;
+		if (buffer) delete [] buffer;
+		buffer = new CHAR_INFO[buffer_size];
+	}
 	CHAR_INFO* ptr = buffer;
 	SMALL_RECT sr;
 	COORD      pos = { 0, 0 };
 
 	/* ReadConsoleOuput - maximum read size 64kByte?? */
 	size.Y = 0x8000 / sizeof(CHAR_INFO) / size.X;
-	sr.Left  = csi->srWindow.Left;
-	sr.Right = csi->srWindow.Right;
-	sr.Top   = csi->srWindow.Top;
+	sr.Left  = csi.srWindow.Left;
+	sr.Right = csi.srWindow.Right;
+	sr.Top   = csi.srWindow.Top;
 	do {
 		sr.Bottom = sr.Top + size.Y -1;
-		if(sr.Bottom > csi->srWindow.Bottom) {
-			sr.Bottom = csi->srWindow.Bottom;
+		if(sr.Bottom > csi.srWindow.Bottom) {
+			sr.Bottom = csi.srWindow.Bottom;
 			size.Y = sr.Bottom - sr.Top +1;
 		}
 		ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr);
 		ptr += size.X * size.Y;
 		sr.Top = sr.Bottom +1;
-	} while(sr.Top <= csi->srWindow.Bottom);
+	} while(sr.Top <= csi.srWindow.Bottom);
 
 	/* cursor blink */
 	if(gCurBlink && gFocus) {
@@ -551,19 +563,21 @@ void	onTimer(HWND hWnd)
 
 	/* compare */
 	if(gScreen && gCSI &&
-	   !memcmp(csi, gCSI, sizeof(CONSOLE_SCREEN_BUFFER_INFO)) &&
+	   !memcmp(&csi, gCSI, sizeof(CONSOLE_SCREEN_BUFFER_INFO)) &&
 	   !memcmp(buffer, gScreen, sizeof(CHAR_INFO) * nb)) {
 		/* no modified */
-		delete [] buffer;
-		delete csi;
 		return;
 	}
 
-	/* swap buffer */
-	if(gScreen) delete [] gScreen;
-	if(gCSI) delete gCSI;
-	gScreen = buffer;
-	gCSI = csi;
+	/* copy buffer */
+	if(gScreen == NULL) {
+		gScreen = new CHAR_INFO[nb];
+		gScreenSize = nb;
+	}
+	memcpy(gScreen, buffer, sizeof(CHAR_INFO)*nb);
+	if(gCSI == NULL)
+		gCSI = new CONSOLE_SCREEN_BUFFER_INFO;
+	memcpy(gCSI, &csi, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
 
 	/* redraw request */
 	InvalidateRect(hWnd, NULL, TRUE);
