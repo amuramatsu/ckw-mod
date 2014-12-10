@@ -416,7 +416,7 @@ static void __set_console_window_size(LONG cols, LONG rows)
 
 	SetConsoleScreenBufferSize(gStdOut, csi.dwSize);
 	SetConsoleWindowInfo(gStdOut, TRUE, &csi.srWindow);
-	if (gScreen && gScreenSize < rows*cols) {
+	if (gScreen && gScreenSize < (DWORD)rows*cols) {
 		CHAR_INFO *newScreen = new CHAR_INFO[rows*cols];
 		memcpy(newScreen, gScreen, gScreenSize * sizeof(CHAR_INFO));
 		delete [] gScreen;
@@ -577,7 +577,7 @@ void	onTimer(HWND hWnd)
 	memcpy(gScreen, buffer, sizeof(CHAR_INFO)*nb);
 	if(gCSI == NULL)
 		gCSI = new CONSOLE_SCREEN_BUFFER_INFO;
-	memcpy(gCSI, &csi, sizeof(CONSOLE_SCREEN_BUFFER_INFO));
+	*gCSI = csi;
 
 	/* redraw request */
 	InvalidateRect(hWnd, NULL, TRUE);
