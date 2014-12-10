@@ -508,7 +508,7 @@ void	onTimer(HWND hWnd)
 	}
 
 	/* refresh handle */
-	if(gStdOut) CloseHandle(gStdOut);
+	if(gStdOut && gStdOut != INVALID_HANDLE_VALUE) CloseHandle(gStdOut);
 	gStdOut = CreateFile(L"CONOUT$", GENERIC_READ|GENERIC_WRITE,
 			     FILE_SHARE_READ|FILE_SHARE_WRITE,
 			     NULL, OPEN_EXISTING, 0, NULL);
@@ -1149,6 +1149,10 @@ static BOOL create_console(ckOpt& opt)
 
 	if(!gConWnd || !gStdIn || !gStdOut || !gStdErr)
 		return(FALSE);
+	if(gStdIn == INVALID_HANDLE_VALUE ||
+	   gStdOut == INVALID_HANDLE_VALUE ||
+	   gStdErr ==INVALID_HANDLE_VALUE)
+		return(FALSE);
 
 	HINSTANCE hLib;
 	hLib = LoadLibraryW( L"KERNEL32.DLL" );
@@ -1312,7 +1316,7 @@ static BOOL initialize()
 }
 
 #define SAFE_CloseHandle(handle) \
-	if(handle) { CloseHandle(handle); handle = NULL; }
+	if((handle) && (handle) != INVALID_HANDLE_VALUE) { CloseHandle(handle); handle = NULL; }
 
 #define SAFE_DeleteObject(handle) \
 	if(handle) { DeleteObject(handle); handle = NULL; }
