@@ -506,8 +506,8 @@ void	onTimer(HWND hWnd)
 		wchar_t str[256];
 		GetConsoleTitle(str, sizeof(str) / sizeof(str[0]));
 		if(gTitle == NULL || wcscmp(gTitle, str) != 0) {
-			if (!gTitle)
-				gTitle = new wchar_t[sizeof(str)/sizeof(str[0])];
+			if (gTitle) delete [] gTitle;
+			gTitle = new wchar_t[wcslen(str)+1];
 			wcscpy(gTitle, str);
 			SetWindowText(hWnd, gTitle);
 			updateTrayTip(hWnd, gTitle);
