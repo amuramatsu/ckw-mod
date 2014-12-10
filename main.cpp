@@ -110,13 +110,26 @@ void trace(const char *msg)
 #endif
 
 /*****************************************************************************/
+INT ReadConsoleExceptionFilter(PEXCEPTION_POINTERS pep)
+{
+	PEXCEPTION_RECORD per = pep->ExceptionRecord;
+	PCONTEXT pctx = pep->ContextRecord;
+	if (per->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+		return EXCEPTION_EXECUTE_HANDLER;
+	return EXCEPTION_CONTINUE_SEARCH;
+}
 
 BOOL WINAPI ReadConsoleOutput_Unicode(HANDLE con, CHAR_INFO* buffer,
 				      COORD size, COORD pos, SMALL_RECT *sr)
 {
-	if(!ReadConsoleOutputA(con, buffer, size, pos, sr))
+	__try {
+		if(!ReadConsoleOutputA(con, buffer, size, pos, sr))
+			return(FALSE);
+	}
+	__except (ReadConsoleExceptionFilter(GetExceptionInformation())) {
 		return(FALSE);
-
+	}
+	
 	CHAR_INFO* s = buffer;
 	CHAR_INFO* e = buffer + (size.X * size.Y);
 	DWORD	codepage = GetConsoleOutputCP();
@@ -545,7 +558,8 @@ void	onTimer(HWND hWnd)
 			sr.Bottom = csi.srWindow.Bottom;
 			size.Y = sr.Bottom - sr.Top +1;
 		}
-		ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr);
+		if(!ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr))
+			return;
 		ptr += size.X * size.Y;
 		sr.Top = sr.Bottom +1;
 	} while(sr.Top <= csi.srWindow.Bottom);
