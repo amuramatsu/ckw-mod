@@ -535,7 +535,11 @@ void	onTimer(HWND hWnd)
 	CONSOLE_SCREEN_BUFFER_INFO csi;
 	COORD	size;
 
-	GetConsoleScreenBufferInfo(gStdOut, &csi);
+	if(!GetConsoleScreenBufferInfo(gStdOut, &csi)) {
+		if (gStdOut && gStdOut != INVALID_HANDLE_VALUE) CloseHandle(gStdOut);
+		gStdOut = NULL;
+		return;
+	}
 	size.X = CSI_WndCols(&csi);
 	size.Y = CSI_WndRows(&csi);
 
@@ -563,8 +567,11 @@ void	onTimer(HWND hWnd)
 			sr.Bottom = csi.srWindow.Bottom;
 			size.Y = sr.Bottom - sr.Top +1;
 		}
-		if(!ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr))
+		if(!ReadConsoleOutput_Unicode(gStdOut, ptr, size, pos, &sr)) {
+			if (gStdOut && gStdOut != INVALID_HANDLE_VALUE) CloseHandle(gStdOut);
+			gStdOut = NULL;
 			return;
+		}
 		ptr += size.X * size.Y;
 		sr.Top = sr.Bottom +1;
 	} while(sr.Top <= csi.srWindow.Bottom);
