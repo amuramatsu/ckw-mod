@@ -241,6 +241,7 @@ static void __draw_selection(HDC hDC)
 /*----------*/
 static void __draw_screen(HDC hDC)
 {
+	static SHORT columns_size = 0;
 	int	pntX, pntY;
 	int	x, y;
 	int	color_fg;
@@ -248,12 +249,19 @@ static void __draw_screen(HDC hDC)
 	CHAR_INFO* ptr = gScreen;
 	int	 work_color_fg = -1;
 	int	 work_color_bg = -1;
-	wchar_t* work_text = new wchar_t[ CSI_WndCols(gCSI) ];
+	static wchar_t* work_text = NULL;
 	wchar_t* work_text_ptr;
-	INT*	 work_width = new INT[ CSI_WndCols(gCSI) ];
+	static INT*	 work_width = NULL;
 	INT*	 work_width_ptr;
 	int	 work_pntX;
 
+	if (columns_size < CSI_WndCols(gCSI)) {
+		columns_size = CSI_WndCols(gCSI);
+		if (work_text) delete [] work_text;
+		work_text = new wchar_t[columns_size];
+		if (work_width) delete [] work_width;
+		work_width = new INT[columns_size];
+	}
 	pntY = 0;
 	for(y = gCSI->srWindow.Top ; y <= gCSI->srWindow.Bottom ; y++) {
 		pntX = 0;
@@ -342,9 +350,6 @@ static void __draw_screen(HDC hDC)
 					&ptr->Char.UnicodeChar, 1, work_width);
 		}
 	}
-
-	delete [] work_width;
-	delete [] work_text;
 }
 
 /*----------*/
