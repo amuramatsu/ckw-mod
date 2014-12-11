@@ -595,6 +595,15 @@ void	onTimer(HWND hWnd)
 		return;
 	}
 
+    /* ConsoleScreenBuffer is modified or not */
+	CONSOLE_SCREEN_BUFFER_INFO csi2;
+	if(!GetConsoleScreenBufferInfo(gStdOut, &csi2) ||
+	   memcmp(&csi, &csi2, sizeof(CONSOLE_SCREEN_BUFFER_INFO))) {
+		if (gStdOut && gStdOut != INVALID_HANDLE_VALUE) CloseHandle(gStdOut);
+		gStdOut = NULL;
+		return;
+	}
+
 	/* copy buffer */
 	if(gScreen == NULL) {
 		gScreen = new CHAR_INFO[nb];
